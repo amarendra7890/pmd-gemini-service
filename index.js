@@ -23,12 +23,22 @@ const initializeGemini = () => {
 // Initialize Gemini on startup
 initializeGemini();
 
-// Health check endpoint
-app.get("/health", (req, res) => {
+// Health check endpoint with PMD test
+app.get("/health", async (req, res) => {
+    let pmdStatus = 'unknown';
+    try {
+        // Test if PMD scanner is available
+        const pmdTest = await exec("sf", ["scanner", "--help"]);
+        pmdStatus = 'available';
+    } catch (error) {
+        pmdStatus = 'not available: ' + error.message;
+    }
+
     res.json({ 
         status: "ok", 
         message: "PMD-Gemini Service is running",
         geminiAvailable: !!genAI,
+        pmdStatus: pmdStatus,
         timestamp: new Date().toISOString()
     });
 });
@@ -76,7 +86,17 @@ app.post("/run", async (req, res) => {
         console.log(`📁 Created temporary file: ${tmp} (${source.length} chars)`);
         console.log(`🔍 Running PMD analysis on ${filename}...`);
         
+        // Debug: Check if file was created properly
+        try {
+            const fileStats = await fs.stat(tmp);
+            console.log(`📊 File created successfully: ${fileStats.size} bytes`);
+        } catch (statError) {
+            console.log(`❌ File creation failed: ${statError.message}`);
+        }
+
         // Use legacy PMD scanner which works better for rule detection
+        console.log(`🚀 Executing: sf scanner run --engine pmd --format json --target ${tmp}`);
+        
         const pmdOutput = await Promise.race([
             exec("sf", [
                 "scanner",
@@ -90,6 +110,9 @@ app.post("/run", async (req, res) => {
             )
         ]);
         
+        console.log(`📤 PMD raw output length: ${pmdOutput.length} characters`);
+        console.log(`📤 PMD raw output: ${pmdOutput}`);
+        
         // Clean up temporary file
         await fs.unlink(tmp);
         console.log("🧹 Cleaned up temporary file");
@@ -99,12 +122,14 @@ app.post("/run", async (req, res) => {
         try {
             if (pmdOutput.trim()) {
                 result = JSON.parse(pmdOutput);
-                console.log(`📊 Raw PMD results: ${pmdOutput.substring(0, 200)}...`);
+                console.log(`📊 Parsed ${result.length} PMD violations`);
             } else {
+                console.log(`⚠️ PMD returned empty output`);
                 result = [];
             }
         } catch (parseError) {
-            console.log("📄 PMD output (not JSON):", pmdOutput);
+            console.log("❌ Failed to parse PMD output as JSON:", parseError.message);
+            console.log("📄 Raw PMD output:", pmdOutput);
             result = [];
         }
         
