@@ -1,0 +1,25 @@
+{
+  "name": "pmd-gemini-service",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["pmd", "salesforce", "code-analysis", "gemini-ai"],
+  "author": "",
+  "license": "ISC",
+  "description": "PMD code analysis service with Gemini AI suggestions",
+  "dependencies": {
+    "@google/generative-ai": "^0.15.0",
+    "express": "^4.18.0",
+    "node-fetch": "^3.3.0",
+    "uuid": "^9.0.0",
+    "dotenv": "^16.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
