@@ -64,15 +64,13 @@ app.post("/run", async (req, res) => {
         console.log(`📁 Created temporary file: ${tmp}`);
         console.log(`🔍 Running PMD scan on ${filename}...`);
         
-        // Run Code Analyzer v5 (correct command)
+        // Run Code Analyzer v5 (simplified approach - output to stdout)
         const pmdOutput = await exec("sf", [
             "code-analyzer",
             "run",
-            "--engine",
-            "pmd",
-            "--format",
-            "json",
-            "--target",
+            "--rule-selector",
+            "pmd:Recommended",
+            "--workspace",
             tmp,
         ]);
         
@@ -80,16 +78,23 @@ app.post("/run", async (req, res) => {
         await fs.unlink(tmp);
         console.log("🧹 Cleaned up temporary file");
         
-        // Parse PMD results
+        // Parse Code Analyzer results
         let result;
         try {
-            result = JSON.parse(pmdOutput || "[]");
+            // Code Analyzer v5 outputs results in a different format
+            // Try to parse as JSON first, if that fails, parse the table output
+            if (pmdOutput.trim().startsWith('[') || pmdOutput.trim().startsWith('{')) {
+                result = JSON.parse(pmdOutput);
+            } else {
+                // Parse table format and convert to JSON
+                result = parseCodeAnalyzerTableOutput(pmdOutput);
+            }
         } catch (parseError) {
-            console.log("📄 PMD output:", pmdOutput);
+            console.log("📄 Code Analyzer output:", pmdOutput);
             result = [];
         }
         
-        console.log(`✅ PMD scan completed - found ${result.length} issues`);
+        console.log(`✅ Code Analyzer scan completed - found ${result.length} issues`);
         res.json(result);
         
     } catch (error) {
@@ -184,6 +189,35 @@ FORMAT YOUR RESPONSE AS:
         });
     }
 });
+
+// Utility function to parse Code Analyzer v5 table output
+function parseCodeAnalyzerTableOutput(output) {
+    const lines = output.split('\n');
+    const violations = [];
+    
+    // Look for table rows (skip header and separator lines)
+    for (const line of lines) {
+        // Skip empty lines, headers, and separators
+        if (!line.trim() || line.includes('─') || line.includes('Rule') || line.includes('Severity')) {
+            continue;
+        }
+        
+        // Try to parse table format: Rule | Severity | Line | Description | File
+        const parts = line.split('│').map(part => part.trim()).filter(part => part);
+        
+        if (parts.length >= 4) {
+            violations.push({
+                ruleName: parts[0] || 'Unknown',
+                severity: parts[1] || 'Info',
+                line: parseInt(parts[2]) || 1,
+                message: parts[3] || 'Code violation detected',
+                fileName: parts[4] || 'Unknown'
+            });
+        }
+    }
+    
+    return violations;
+}
 
 // Utility function to execute shell commands
 function exec(bin, args) {
