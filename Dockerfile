@@ -1,16 +1,22 @@
 FROM node:18-slim
 
-# Install system dependencies
+# Install system dependencies including Java
 RUN apt-get update && apt-get install -y \
     curl \
+    openjdk-11-jdk \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Salesforce CLI and PMD Scanner
-RUN npm install -g @salesforce/cli && \
-    sf plugins install @salesforce/sfdx-scanner
+# Set JAVA_HOME environment variable
+ENV JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+ENV PATH=$PATH:$JAVA_HOME/bin
 
-# Verify installation
-RUN sf scanner --help
+# Install Salesforce CLI and Code Analyzer v5
+RUN npm install -g @salesforce/cli && \
+    sf plugins install @salesforce/code-analyzer
+
+# Verify installations
+RUN java -version && \
+    sf code-analyzer --help
 
 # Set working directory
 WORKDIR /app

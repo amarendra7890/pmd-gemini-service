@@ -1,4 +1,3 @@
-import 'dotenv/config';
 import express from "express";
 import { execFile } from "child_process";
 import { v4 as uuid } from "uuid";
@@ -65,9 +64,9 @@ app.post("/run", async (req, res) => {
         console.log(`📁 Created temporary file: ${tmp}`);
         console.log(`🔍 Running PMD scan on ${filename}...`);
         
-        // Run PMD scanner
+        // Run Code Analyzer v5 (updated command)
         const pmdOutput = await exec("sf", [
-            "scanner",
+            "code-analyzer",
             "run",
             "--engine",
             "pmd",
