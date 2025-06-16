@@ -11,9 +11,9 @@ RUN apt-get update && apt-get install -y \
 # Verify installations
 RUN node --version && npm --version && java -version
 
-# Install Salesforce CLI and Code Analyzer v5
+# Install Salesforce CLI and Code Analyzer v5 (correct plugin name)
 RUN npm install -g @salesforce/cli && \
-    sf plugins install @salesforce/code-analyzer
+    sf plugins install code-analyzer
 
 # Verify Code Analyzer installation
 RUN sf code-analyzer --help

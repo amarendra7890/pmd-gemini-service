@@ -64,7 +64,7 @@ app.post("/run", async (req, res) => {
         console.log(`📁 Created temporary file: ${tmp}`);
         console.log(`🔍 Running PMD scan on ${filename}...`);
         
-        // Run Code Analyzer v5 (updated command)
+        // Run Code Analyzer v5 (correct command)
         const pmdOutput = await exec("sf", [
             "code-analyzer",
             "run",
