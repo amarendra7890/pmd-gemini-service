@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from "express";
 import { execFile } from "child_process";
 import { v4 as uuid } from "uuid";
@@ -47,6 +48,10 @@ app.use((req, res, next) => {
 
 // POST /run - PMD Scanning endpoint
 app.post("/run", async (req, res) => {
+    // Set a longer timeout for this endpoint
+    req.setTimeout(55000); // 55 seconds to stay under Salesforce 60s limit
+    res.setTimeout(55000);
+    
     try {
         console.log("🔍 Received PMD scan request");
         const { filename, source } = req.body;
@@ -57,21 +62,33 @@ app.post("/run", async (req, res) => {
             });
         }
 
-        // Create temporary file
+        // Check file size to prevent very large files from timing out
+        if (source.length > 100000) { // 100KB limit
+            console.log(`⚠️  Large file detected: ${source.length} characters`);
+            return res.status(400).json({
+                error: "File too large for analysis. PMD analysis is limited to files under 100KB. Please try a smaller class."
+            });
+        }
+
         const tmp = `/tmp/${uuid()}-${filename}`;
         await fs.writeFile(tmp, source, "utf8");
         
-        console.log(`📁 Created temporary file: ${tmp}`);
-        console.log(`🔍 Running PMD scan on ${filename}...`);
+        console.log(`📁 Created temporary file: ${tmp} (${source.length} chars)`);
+        console.log(`🔍 Running Code Analyzer on ${filename}...`);
         
-        // Run Code Analyzer v5 (simplified approach - output to stdout)
-        const pmdOutput = await exec("sf", [
-            "code-analyzer",
-            "run",
-            "--rule-selector",
-            "pmd:Recommended",
-            "--workspace",
-            tmp,
+        // Run Code Analyzer v5 with timeout
+        const pmdOutput = await Promise.race([
+            exec("sf", [
+                "code-analyzer",
+                "run",
+                "--rule-selector",
+                "pmd:Recommended",
+                "--workspace",
+                tmp,
+            ]),
+            new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('PMD analysis timed out after 45 seconds')), 45000)
+            )
         ]);
         
         // Clean up temporary file
@@ -98,9 +115,22 @@ app.post("/run", async (req, res) => {
         res.json(result);
         
     } catch (error) {
-        console.error("❌ PMD scan error:", error);
+        console.error("❌ Code Analyzer scan error:", error);
+        
+        // Provide helpful error messages based on error type
+        let errorMessage = "PMD scan failed";
+        if (error.message.includes('timed out')) {
+            errorMessage = "Analysis timed out. The file may be too large or complex for PMD analysis.";
+        } else if (error.message.includes('ENOENT')) {
+            errorMessage = "PMD tool not found. Please contact administrator.";
+        } else if (error.message.includes('command not found')) {
+            errorMessage = "Code Analyzer not properly installed.";
+        } else {
+            errorMessage = `PMD scan failed: ${error.message}`;
+        }
+        
         res.status(500).json({ 
-            error: `PMD scan failed: ${error.message}`,
+            error: errorMessage,
             details: error.toString()
         });
     }
