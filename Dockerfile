@@ -1,7 +1,7 @@
 # Use a base image that has both Node.js and Java
 FROM eclipse-temurin:17-jdk
 
-# Install Node.js 18
+# Install Node.js 20 (required for Code Analyzer v5)
 RUN apt-get update && apt-get install -y \
     curl \
     && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
@@ -11,12 +11,13 @@ RUN apt-get update && apt-get install -y \
 # Verify installations
 RUN node --version && npm --version && java -version
 
-# Install Salesforce CLI and Code Analyzer v5 (correct plugin name)
+# Install Salesforce CLI and both scanners
 RUN npm install -g @salesforce/cli && \
+    sf plugins install @salesforce/sfdx-scanner && \
     sf plugins install code-analyzer
 
-# Verify Code Analyzer installation
-RUN sf code-analyzer --help
+# Verify both installations
+RUN sf scanner --help && sf code-analyzer --help
 
 # Set working directory
 WORKDIR /app

@@ -74,17 +74,16 @@ app.post("/run", async (req, res) => {
         await fs.writeFile(tmp, source, "utf8");
         
         console.log(`📁 Created temporary file: ${tmp} (${source.length} chars)`);
-        console.log(`🔍 Running Code Analyzer on ${filename}...`);
+        console.log(`🔍 Running PMD analysis on ${filename}...`);
         
-        // Run Code Analyzer v5 with timeout
+        // Use legacy PMD scanner which works better for rule detection
         const pmdOutput = await Promise.race([
             exec("sf", [
-                "code-analyzer",
+                "scanner",
                 "run",
-                "--rule-selector",
-                "pmd:Recommended",
-                "--workspace",
-                tmp,
+                "--engine", "pmd",
+                "--format", "json",
+                "--target", tmp,
             ]),
             new Promise((_, reject) => 
                 setTimeout(() => reject(new Error('PMD analysis timed out after 45 seconds')), 45000)
@@ -95,23 +94,21 @@ app.post("/run", async (req, res) => {
         await fs.unlink(tmp);
         console.log("🧹 Cleaned up temporary file");
         
-        // Parse Code Analyzer results
+        // Parse PMD results (legacy format is more reliable)
         let result;
         try {
-            // Code Analyzer v5 outputs results in a different format
-            // Try to parse as JSON first, if that fails, parse the table output
-            if (pmdOutput.trim().startsWith('[') || pmdOutput.trim().startsWith('{')) {
+            if (pmdOutput.trim()) {
                 result = JSON.parse(pmdOutput);
+                console.log(`📊 Raw PMD results: ${pmdOutput.substring(0, 200)}...`);
             } else {
-                // Parse table format and convert to JSON
-                result = parseCodeAnalyzerTableOutput(pmdOutput);
+                result = [];
             }
         } catch (parseError) {
-            console.log("📄 Code Analyzer output:", pmdOutput);
+            console.log("📄 PMD output (not JSON):", pmdOutput);
             result = [];
         }
         
-        console.log(`✅ Code Analyzer scan completed - found ${result.length} issues`);
+        console.log(`✅ PMD scan completed - found ${result.length} issues`);
         res.json(result);
         
     } catch (error) {
