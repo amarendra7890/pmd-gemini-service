@@ -1,22 +1,22 @@
-FROM node:18-slim
+# Use a base image that has both Node.js and Java
+FROM eclipse-temurin:17-jdk
 
-# Install system dependencies including Java
+# Install Node.js 18
 RUN apt-get update && apt-get install -y \
     curl \
-    openjdk-11-jdk \
+    && curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+    && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 
-# Set JAVA_HOME environment variable
-ENV JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
-ENV PATH=$PATH:$JAVA_HOME/bin
+# Verify installations
+RUN node --version && npm --version && java -version
 
 # Install Salesforce CLI and Code Analyzer v5
 RUN npm install -g @salesforce/cli && \
     sf plugins install @salesforce/code-analyzer
 
-# Verify installations
-RUN java -version && \
-    sf code-analyzer --help
+# Verify Code Analyzer installation
+RUN sf code-analyzer --help
 
 # Set working directory
 WORKDIR /app
