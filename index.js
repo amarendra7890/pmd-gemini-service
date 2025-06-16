@@ -124,8 +124,8 @@ app.post("/fix", async (req, res) => {
             });
         }
 
-        // Get Gemini model
-        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+        // Get Gemini model (use the correct model name)
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
         // Create detailed prompt for Apex code fixing
         const fullPrompt = `You are an expert Salesforce Apex developer. 
@@ -166,7 +166,7 @@ FORMAT YOUR RESPONSE AS:
         console.log("✅ AI suggestion generated successfully");
         res.json({ 
             patch: suggestion,
-            model: "gemini-pro",
+            model: "gemini-1.5-flash",
             timestamp: new Date().toISOString()
         });
         
